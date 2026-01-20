@@ -179,7 +179,30 @@ class NetworkClient(
   private lazy val log: Logger = new Logger {
     def trace(t: => Throwable): Unit = ()
     def success(message: => String): Unit = ()
-    def log(level: Level.Value, message: => String): Unit = console.appendLog(level, message)
+    def log(level: Level.Value, message: => String): Unit = {
+      // For forked processes in client mode, write directly to output streams
+      // to ensure stdout/stderr is captured correctly, especially during watch re-evaluation
+      synchronized {
+        level match {
+          case Level.Error =>
+            errorStream.println(message)
+            errorStream.flush()
+          case _ =>
+            printStream.println(message)
+            printStream.flush()
+        }
+      }
+    }
+    // Override out/err methods to write directly to streams for ProcessLogger
+    // These are called by scala.sys.process.ProcessLogger for stdout/stderr
+    override def out(message: => String): Unit = synchronized {
+      printStream.println(message)
+      printStream.flush()
+    }
+    override def err(message: => String): Unit = synchronized {
+      errorStream.println(message)
+      errorStream.flush()
+    }
   }
 
   private[sbt] def connectOrStartServerAndConnect(

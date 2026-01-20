@@ -66,3 +66,36 @@ Listening for transport dt_socket at address: 5005
 
 Please note that this alternative launcher does _not_ have feature parity with sbt/launcher. (Meta)
 contributions welcome! :-D
+
+### Testing stdout/stderr in `sbt --client` watch mode (Issue #7527)
+
+Verifies that stdout/stderr from forked processes is captured in `sbt --client` mode during watch re-evaluation.
+
+**Setup:**
+
+1. Create test project with `src/main/scala/app/Main.scala`:
+   ```scala
+   package app
+   object Main {
+     def main(args: Array[String]): Unit = println("Hello, World!")
+   }
+   ```
+
+2. Create `build.sbt`:
+   ```scala
+   name := "test"
+   fork := true
+   ```
+
+**Test:**
+
+```bash
+$ sbt --client
+> ~run
+```
+
+- Make a change to `Main.scala` (e.g., change the message)
+- **Expected:** Output appears on first run AND every re-evaluation
+- **Buggy behavior:** Output only appears on first run, then disappears
+
+**Verification:** Output should appear consistently on every watch re-evaluation in `sbt --client` mode.
