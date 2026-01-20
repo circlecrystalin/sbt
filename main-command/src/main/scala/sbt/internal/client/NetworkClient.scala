@@ -35,6 +35,7 @@ import sbt.io.syntax.*
 import sbt.internal.UnixDomainSocketFactory
 import sbt.protocol.*
 import sbt.util.Level
+import sbt.{ ForkOptions, Fork, OutputStrategy }
 import sjsonnew.BasicJsonProtocol.*
 import sjsonnew.shaded.scalajson.ast.unsafe.{ JObject, JValue }
 import sjsonnew.support.scalajson.unsafe.Converter
@@ -648,13 +649,11 @@ class NetworkClient(
     def splitToMessage: Vector[(Level.Value, String)] =
       (msg.method, msg.params) match {
         case ("build/logMessage", Some(json)) =>
-          if (!attached.get) {
-            import sbt.internal.langserver.codec.JsonProtocol.given
-            Converter.fromJson[LogMessageParams](json) match {
-              case Success(params) => splitLogMessage(params)
-              case Failure(_)      => Vector()
-            }
-          } else Vector()
+          import sbt.internal.langserver.codec.JsonProtocol.given
+          Converter.fromJson[LogMessageParams](json) match {
+            case Success(params) => splitLogMessage(params)
+            case Failure(_)      => Vector()
+          }
         case (`systemOut`, Some(json)) =>
           Converter.fromJson[Array[Byte]](json) match {
             case Success(bytes) if bytes.nonEmpty && attached.get =>
@@ -752,7 +751,7 @@ class NetworkClient(
     def jvmRun(info: JvmRunInfo): Try[Unit] = {
       val option = ForkOptions(
         javaHome = info.javaHome.map(new File(_)),
-        outputStrategy = None, // TODO: Handle buffered output etc
+        outputStrategy = Some(OutputStrategy.LoggedOutput(log)),
         bootJars = Vector.empty,
         workingDirectory = info.workingDirectory.map(new File(_)),
         runJVMOptions = info.jvmOptions,
@@ -773,7 +772,7 @@ class NetworkClient(
       import java.lang.{ ProcessBuilder as JProcessBuilder }
       val option = ForkOptions(
         javaHome = None,
-        outputStrategy = None, // TODO: Handle buffered output etc
+        outputStrategy = Some(OutputStrategy.LoggedOutput(log)),
         bootJars = Vector.empty,
         workingDirectory = info.workingDirectory.map(new File(_)),
         runJVMOptions = Vector.empty,
