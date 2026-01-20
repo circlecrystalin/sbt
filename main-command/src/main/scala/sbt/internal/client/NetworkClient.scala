@@ -649,11 +649,13 @@ class NetworkClient(
     def splitToMessage: Vector[(Level.Value, String)] =
       (msg.method, msg.params) match {
         case ("build/logMessage", Some(json)) =>
-          import sbt.internal.langserver.codec.JsonProtocol.given
-          Converter.fromJson[LogMessageParams](json) match {
-            case Success(params) => splitLogMessage(params)
-            case Failure(_)      => Vector()
-          }
+          if (!attached.get) {
+            import sbt.internal.langserver.codec.JsonProtocol.given
+            Converter.fromJson[LogMessageParams](json) match {
+              case Success(params) => splitLogMessage(params)
+              case Failure(_)      => Vector()
+            }
+          } else Vector()
         case (`systemOut`, Some(json)) =>
           Converter.fromJson[Array[Byte]](json) match {
             case Success(bytes) if bytes.nonEmpty && attached.get =>
